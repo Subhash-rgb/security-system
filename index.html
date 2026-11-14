@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CircleOS Enterprise — Spatial Security Fusion</title>
+<style>
+  :root {
+    --bg: #030407;
+    --glass: rgba(22, 24, 33, 0.72);
+    --glass-solid: rgba(16, 18, 25, 0.92);
+    --border: rgba(255, 255, 255, 0.11);
+    --blue: #0a84ff;
+    --cyan: #64d2ff;
+    --green: #30d158;
+    --amber: #ffd60a;
+    --red: #ff453a;
+    --purple: #bf5af2;
+    --text: #f5f5f7;
+    --muted: #8e8e93;
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-font-smoothing: antialiased; }
+  body {
+    background:
+      radial-gradient(ellipse 80% 50% at 15% 0%, rgba(10, 132, 255, 0.13), transparent 60%),
+      radial-gradient(ellipse 70% 50% at 85% 100%, rgba(48, 209, 88, 0.08), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+    height: 100vh; overflow: hidden;
+    display: flex; flex-direction: column;
+    padding: 9px 12px; gap: 8px;
+    transition: background 0.25s var(--ease);
+  }
+  body.alarm-bg {
+    background:
+      radial-gradient(ellipse 90% 60% at 50% 15%, rgba(255, 69, 58, 0.28), transparent 70%),
+      #140407;
+  }
+
+  /* Header + Apple Segmented Switch + Dynamic Island */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--glass);
+    backdrop-filter: blur(26px) saturate(180%);
+    -webkit-backdrop-filter: blur(26px) saturate(180%);
+    border: 1px solid var(--border);
+    padding: 7px 13px; border-radius: 16px; gap: 10px; flex-wrap: wrap;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .logo {
+    width: 32px; height: 32px; border-radius: 9px;
+    background: linear-gradient(135deg, #0a84ff, #30d158);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 16px; color: #fff;
+    box-shadow: 0 2px 12px rgba(10, 132, 255, 0.45);
+  }
+  .brand h1 { font-size: 14.5px; font-weight: 700; letter-spacing: -0.2px; }
+  .brand p  { font-size: 10.5px; color: var(--muted); }
+
+  /* Dynamic Island */
+  .island {
+    display: flex; align-items: center; gap: 8px;
+    background: #000; border: 1px solid rgba(255,255,255,0.16);
+    padding: 6px 16px; border-radius: 999px;
+    font-size: 12px; font-weight: 600;
+    transition: all 0.35s var(--ease);
+    box-shadow: 0 4px 18px rgba(0,0,0,0.65);
+  }
+  .island .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .island.alert {
+    background: rgba(255, 69, 58, 0.26); border-color: var(--red);
+    padding: 7px 22px; transform: scale(1.04);
+  }
+  .island.alert .dot { background: var(--red); box-shadow: 0 0 12px var(--red); animation: pulse 0.38s infinite alternate; }
+  @keyframes pulse { from { opacity: 0.45; } to { opacity: 1; } }
+
+  /* Apple Segmented Control (Standard vs Developer) */
+  .seg {
+    display: flex; background: rgba(0,0,0,0.45); border: 1px solid var(--border);
+    padding: 3px; border-radius: 999px; gap: 2px;
+  }
+  .seg button {
+    border: none; background: transparent; color: var(--muted);
+    padding: 4px 12px; font-size: 11px; border-radius: 999px;
+  }
+  .seg button.active { background: rgba(255,255,255,0.16); color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+
+  .toolbar { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+  button {
+    background: rgba(255,255,255,0.07); color: var(--text);
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 6px 10px; border-radius: 999px; cursor: pointer;
+    font-family: inherit; font-size: 11px; font-weight: 600;
+    transition: all 0.16s var(--ease);
+  }
+  button:hover { background: rgba(255,255,255,0.14); }
+  button:active { transform: scale(0.96); }
+  button.primary { background: var(--blue); border-color: transparent; color: #fff; }
+  button.on { background: rgba(48, 209, 88, 0.2); border-color: rgba(48, 209, 88, 0.5); color: var(--green); }
+  button.warn { background: rgba(255, 214, 10, 0.16); border-color: rgba(255, 214, 10, 0.45); color: var(--amber); }
+
+  /* Main 3-Panel Spatial Grid */
+  .views-3 {
+    flex: 1; display: grid;
+    grid-template-columns: 1fr 1.05fr 1.12fr;
+    gap: 9px; min-height: 0;
+  }
+  .card {
+    background: var(--glass);
+    backdrop-filter: blur(22px) saturate(160%);
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
+    border: 1px solid var(--border);
+    border-radius: 16px; padding: 9px 11px;
+    display: flex; flex-direction: column; min-height: 0;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .card.tripped { border-color: rgba(255, 69, 58, 0.78); box-shadow: 0 0 24px rgba(255, 69, 58, 0.22); }
+  .chead {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 6px; font-size: 12px; font-weight: 600;
+  }
+  .badge {
+    font-size: 10px; padding: 2px 8px; border-radius: 999px; font-weight: 700;
+    background: rgba(255,255,255,0.08); color: var(--muted);
+  }
+  .badge.ok   { background: rgba(48, 209, 88, 0.18); color: var(--green); }
+  .badge.trip { background: rgba(255, 69, 58, 0.24); color: var(--red); }
+
+  canvas { width: 100%; height: 100%; display: block; border-radius: 10px; background: #05070c; }
+  .cfoot {
+    margin-top: 6px; font-size: 11px; color: var(--muted);
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  }
+  input[type=range] { accent-color: var(--blue); cursor: pointer; height: 4px; }
+
+  /* Bottom Standard Deck */
+  .bottom-row {
+    height: 165px; display: grid;
+    grid-template-columns: 440px 1fr;
+    gap: 9px;
+  }
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .tile {
+    background: rgba(255, 255, 255, 0.045); border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 10px; padding: 5px 8px;
+  }
+  .tile label { font-size: 9px; color: var(--muted); display: block; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+  .tile val { font-size: 14px; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
+  .tile.blue val { color: var(--cyan); }
+  .tile.green val { color: var(--green); }
+  .tile.amber val { color: var(--amber); }
+
+  .shots-grid { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; min-height: 0; }
+  .shot-slot {
+    background: rgba(0, 0, 0, 0.44); border: 1px dashed rgba(255,255,255,0.16);
+    border-radius: 10px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    overflow: hidden; position: relative; cursor: pointer;
+  }
+  .shot-slot.filled { border-style: solid; border-color: rgba(255, 214, 10, 0.65); }
+  .shot-slot img { width: 100%; height: 100%; object-fit: cover; display: none; }
+  .shot-slot span { font-size: 10.5px; color: var(--muted); }
+  .shot-badge {
+    position: absolute; bottom: 4px; left: 4px; right: 4px;
+    background: rgba(10, 12, 18, 0.8); backdrop-filter: blur(8px);
+    color: #fff; font-size: 9.5px; font-weight: 600;
+    padding: 2px 5px; border-radius: 6px; display: none; text-align: center;
+  }
+
+  /* Developer Mode Telemetry Deck (hidden in Standard Mode) */
+  #devDrawer {
+    display: none;
+    height: 175px;
+    grid-template-columns: 1.15fr 1fr 270px 310px;
+    gap: 9px;
+  }
+  body.dev-mode #devDrawer { display: grid; }
+  body.dev-mode .bottom-row { height: 140px; }
+
+  .dev-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 11px; }
+  .dm { background: rgba(255,255,255,0.04); padding: 5px 7px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06); }
+  .dm span { display: block; font-size: 9px; color: var(--muted); text-transform: uppercase; }
+  .dm b { font-size: 12.5px; color: var(--cyan); font-variant-numeric: tabular-nums; }
+
+  #devConsole {
+    flex: 1; font-family: 'SF Mono', Consolas, monospace; font-size: 10px;
+    color: #8ce99a; overflow: hidden; display: flex; flex-direction: column-reverse;
+    line-height: 1.35; background: rgba(0,0,0,0.45); padding: 6px; border-radius: 8px;
+  }
+
+  #toast {
+    position: fixed; top: 64px; left: 50%; transform: translateX(-50%) translateY(-16px);
+    background: rgba(26, 28, 38, 0.94); backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 69, 58, 0.65); color: #fff;
+    padding: 9px 18px; border-radius: 14px; font-size: 12px; font-weight: 600;
+    box-shadow: 0 12px 34px rgba(0,0,0,0.65); opacity: 0; pointer-events: none; z-index: 99;
+    transition: all 0.28s var(--ease);
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div id="toast">🚨 Intruder Confirmed — Evidence Captured!</div>
+
+<header>
+  <div class="brand">
+    <div class="logo">◎</div>
+    <div>
+      <h1>CircleOS Enterprise</h1>
+      <p>Spatial Acoustic &amp; Optical Fusion &bull; Subhash K</p>
+    </div>
+  </div>
+
+  <div class="island" id="island">
+    <div class="dot"></div>
+    <span id="islandText">Armed &bull; Scanning</span>
+  </div>
+
+  <div class="seg">
+    <button id="modeStd" class="active">Standard</button>
+    <button id="modeDev">Developer</button>
+  </div>
+
+  <div class="toolbar">
+    <button id="btnCam" class="primary">Camera</button>
+    <button id="btnNextCam">Switch</button>
+    <button id="btnConnect" class="primary">Connect USB</button>
+    <button id="btnCal" class="warn">Set Room</button>
+    <button id="btnNotify">Notify: Off</button>
+    <button id="btnAutoSave" class="on">Auto-Save: On</button>
+    <button id="btnSound" class="on">Sound: On</button>
+    <button id="btnRot" class="on">180&deg;: On</button>
+    <button id="btnMirror">Mirror: Off</button>
+    <button id="btnDemo">Demo</button>
+  </div>
+</header>
+
+<!-- MAIN 3-PANEL SPATIAL COMPARISON -->
+<div class="views-3">
+  <!-- 1. SOUND MAP (SENSOR ONLY) -->
+  <div class="card" id="pSound">
+    <div class="chead">
+      <span>1. Acoustic Sound Map (Sensor Only)</span>
+      <span class="badge ok" id="pillSound">CLEAR</span>
+    </div>
+    <canvas id="cSound"></canvas>
+    <div class="cfoot">
+      <span id="txtSoundDist">Distance: CLEAR</span>
+      <span style="display:flex; align-items:center; gap:6px;">
+        Trip &lt; <b id="lblTrip" style="color:var(--amber);">150</b>cm
+        <input type="range" id="rngTrip" min="15" max="220" value="150" style="width:92px;">
+      </span>
+    </div>
+  </div>
+
+  <!-- 2. VISUAL / LIDAR WIREFRAME (CAMERA ONLY) -->
+  <div class="card" id="pCam">
+    <div class="chead">
+      <span>2. Visual LiDAR &amp; Body Map (Camera Only)</span>
+      <span class="badge ok" id="pillCam">CLEAR</span>
+    </div>
+    <canvas id="cLidar"></canvas>
+    <div class="cfoot">
+      <span id="txtCamMotion">Motion: 0.0%</span>
+      <span style="display:flex; align-items:center; gap:6px;">
+        Detail
+        <input type="range" id="rngEdge" min="14" max="70" value="26" style="width:80px;">
+      </span>
+    </div>
+  </div>
+
+  <!-- 3. COMBINED SENSOR FUSION -->
+  <div class="card" id="pCombined">
+    <div class="chead">
+      <span>3. Combined Scan (Sound + Vision Fusion)</span>
+      <span class="badge ok" id="pillComb">ARMED</span>
+    </div>
+    <canvas id="cComb"></canvas>
+    <div class="cfoot">
+      <span id="txtCombInfo">Confidence: 0% &bull; OLED Synced</span>
+      <span id="fpsLabel">60 FPS</span>
+    </div>
+  </div>
+</div>
+
+<!-- STANDARD BOTTOM DECK -->
+<div class="bottom-row">
+  <div class="card" style="gap:6px;">
+    <div class="stats-grid">
+      <div class="tile blue"><label>Distance</label><val id="stDist">CLEAR</val></div>
+      <div class="tile green"><label>Closest Hit</label><val id="stMin">--</val></div>
+      <div class="tile amber"><label>Speed</label><val id="stSpeed">0 cm/s</val></div>
+      <div class="tile"><label>Confidence</label><val id="stConf">0%</val></div>
+      <div class="tile"><label>Sensor Rate</label><val id="stHz">0 Hz</val></div>
+      <div class="tile"><label>Incidents</label><val id="stAlerts">0</val></div>
+    </div>
+    <canvas id="cSpark" style="flex:1; min-height:36px;"></canvas>
+  </div>
+
+  <div class="card">
+    <div class="chead" style="margin-bottom:5px;">
+      <span>Instant 3-Photo Evidence Burst (Click any shot to download)</span>
+      <span class="badge" id="burstCount">0 bursts</span>
+    </div>
+    <div class="shots-grid">
+      <div class="shot-slot" id="slot0"><img id="img0"><span id="lbl0">Shot 1 (0 ms)</span><div class="shot-badge" id="b0"></div></div>
+      <div class="shot-slot" id="slot1"><img id="img1"><span id="lbl1">Shot 2 (250 ms)</span><div class="shot-badge" id="b1"></div></div>
+      <div class="shot-slot" id="slot2"><img id="img2"><span id="lbl2">Shot 3 (500 ms)</span><div class="shot-badge" id="b2"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- DEVELOPER MODE TELEMETRY DRAWER -->
+<div id="devDrawer">
+  <div class="card">
+    <div class="chead"><span>Dual-Trace Oscilloscope (Filtered vs Raw mm)</span><span class="badge" id="oscBadge">LIVE</span></div>
+    <canvas id="cDevOsc"></canvas>
+  </div>
+
+  <div class="card">
+    <div class="chead"><span>Fusion Timeline (Motion % vs Sound Proximity %)</span><span class="badge" id="ruleBadge">AND LOGIC</span></div>
+    <canvas id="cDevFus"></canvas>
+  </div>
+
+  <div class="card" style="gap:5px;">
+    <div class="chead" style="margin-bottom:2px;">
+      <span>Diagnostics</span>
+      <button id="btnFusionRule" style="padding:2px 8px; font-size:10px;">Rule: AND</button>
+    </div>
+    <div class="dev-metrics">
+      <div class="dm"><span>Jitter (&sigma;)</span><b id="dvJitter">0.0 mm</b></div>
+      <div class="dm"><span>Echo TOF</span><b id="dvEcho">0 &mu;s</b></div>
+      <div class="dm"><span>Frame Time</span><b id="dvCpu">0.0 ms</b></div>
+      <div class="dm"><span>Room Wall</span><b id="dvWall">236.8 cm</b></div>
+    </div>
+    <button id="btnExportCsv" class="primary" style="margin-top:auto; width:100%;">Export Full Audit CSV</button>
+  </div>
+
+  <div class="card">
+    <div class="chead" style="margin-bottom:4px;"><span>Serial &amp; Audit Stream (115200)</span><span class="badge" id="pktTotal">0 pkts</span></div>
+    <div id="devConsole"></div>
+  </div>
+</div>
+
+<video id="camVideo" playsinline autoplay muted style="display:none;"></video>
+
+<script>
+(() => {
+  const PW = 160, PH = 120, PCOUNT = PW * PH;
+  const offC = document.createElement('canvas');
+  offC.width = PW; offC.height = PH;
+  const offCtx = offC.getContext('2d', { willReadFrequently: true });
+
+  const cSound = document.getElementById('cSound');
+  const cLidar = document.getElementById('cLidar');
+  const cComb  = document.getElementById('cComb');
+  const cSpark = document.getElementById('cSpark');
+  const cDevOsc = document.getElementById('cDevOsc');
+  const cDevFus = document.getElementById('cDevFus');
+
+  const ctxS = cSound.getContext('2d');
+  const ctxL = cLidar.getContext('2d');
+  const ctxF = cComb.getContext('2d');
+  const ctxK = cSpark.getContext('2d');
+  const ctxO = cDevOsc.getContext('2d');
+  const ctxU = cDevFus.getContext('2d');
+  const video = document.getElementById('camVideo');
+
+  // Preallocated typed buffers
+  const grayCur = new Uint8Array(PCOUNT);
+  const runBg   = new Float32Array(PCOUNT);
+  let bgReady = false;
+  const lidarImg = offCtx.createImageData(PW, PH);
+  const lidar32  = new Uint32Array(lidarImg.data.buffer);
+  let lastVideoTime = -1;
+
+  // Motion centroid tracking (Camera Only)
+  let motMinX = PW, motMaxX = 0, motMinY = PH, motMaxY = 0, motCount = 0;
+
+  let devMode = false;
+  let fusionRule = 'AND'; // 'AND' or 'OR'
+  let camActive = false, camIndex = 0;
+  let rotate180 = true, mirrorOn = false;
+  let connected = false, demoMode = false;
+  let autoSave = true, soundOn = true, notifyOn = false;
+
+  let serialWriter = null, lastCmdSent = '';
+  let rxCount = 0, rxHz = 0, totalPackets = 0;
+
+  let distMm = 2368, rawMm = 2368, echoUs = 13820, minCm = 999;
+  let roomWallCm = 236.8;
+  let tripLimitCm = 150, edgeThresh = 26;
+  let soundTripped = false, camTripped = false, combinedTripped = false;
+  let camMotionPct = 0, fusionConf = 0, clearStreak = 0;
+
+  // Histories & Engineering Metrics
+  const HIST_N = 100;
+  const sparkHist = new Float32Array(HIST_N).fill(236);
+  const rawHist   = new Float32Array(HIST_N).fill(236);
+  const motHist   = new Float32Array(HIST_N).fill(0);
+  const sndHist   = new Float32Array(HIST_N).fill(0);
+  const jitterBuf = new Float32Array(12);
+  let jitterIdx = 0, jitterStdMm = 0;
+  const speedSamples = [];
+  let speedCms = 0;
+  let soundMapSlices = new Array(28).fill(236); // Top-down spatial sound sweep ribbon
+
+  const auditCsv = ["timestamp_iso,filtered_cm,raw_cm,echo_us,motion_pct,fusion_conf,event"];
+  let lastBurstMs = 0, burstTotal = 0, audioCtx = null, toastTimer = null;
+
+  function resize() {
+    [cSound, cLidar, cComb].forEach(c => {
+      const r = c.parentElement.getBoundingClientRect();
+      c.width = Math.max(100, Math.floor(r.width - 22));
+      c.height = Math.max(60, Math.floor(r.height - 56));
+    });
+    const sr = cSpark.parentElement.getBoundingClientRect();
+    cSpark.width = Math.max(100, Math.floor(sr.width - 22));
+    cSpark.height = Math.max(34, Math.floor(sr.height - (devMode ? 84 : 96)));
+
+    if (devMode) {
+      [cDevOsc, cDevFus].forEach(c => {
+        const r = c.parentElement.getBoundingClientRect();
+        c.width = Math.max(100, Math.floor(r.width - 22));
+        c.height = Math.max(60, Math.floor(r.height - 40));
+      });
+    }
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const consoleEl = document.getElementById('devConsole');
+  function logDev(txt) {
+    const d = document.createElement('div');
+    d.textContent = txt;
+    consoleEl.prepend(d);
+    if (consoleEl.children.length > 18) consoleEl.removeChild(consoleEl.lastChild);
+  }
+
+  setInterval(() => {
+    rxHz = rxCount; rxCount = 0;
+    document.getElementById('stHz').textContent = `${rxHz} Hz`;
+  }, 1000);
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+  }
+
+  function sendDesktopNotification(cm) {
+    if (!notifyOn || !('Notification' in window) || Notification.permission !== 'granted') return;
+    try {
+      new Notification('🚨 CircleOS Intruder Alert', {
+        body: `Confirmed at ${cm.toFixed(1)} cm (${fusionConf}% confidence) — 3 photos captured.`,
+        silent: true
+      });
+    } catch (_) {}
+  }
+
+  function playAlertChime() {
+    if (!soundOn) return;
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    [[880, 0], [1174.66, 0.11], [1567.98, 0.22]].forEach(([f, delay]) => {
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = f;
+      const t0 = audioCtx.currentTime + delay;
+      g.gain.setValueAtTime(0.001, t0);
+      g.gain.linearRampToValueAtTime(0.11, t0 + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
+      osc.connect(g); g.connect(audioCtx.destination);
+      osc.start(t0); osc.stop(t0 + 0.19);
+    });
+  }
+
+  async function sendToArduino(ch) {
+    if (!serialWriter || lastCmdSent === ch) return;
+    lastCmdSent = ch;
+    try { await serialWriter.write(new TextEncoder().encode(ch)); } catch (_) {}
+  }
+
+  // Standard vs Developer Mode Switch
+  document.getElementById('modeStd').addEventListener('click', () => {
+    devMode = false;
+    document.body.classList.remove('dev-mode');
+    document.getElementById('modeStd').classList.add('active');
+    document.getElementById('modeDev').classList.remove('active');
+    setTimeout(resize, 20);
+  });
+  document.getElementById('modeDev').addEventListener('click', () => {
+    devMode = true;
+    document.body.classList.add('dev-mode');
+    document.getElementById('modeDev').classList.add('active');
+    document.getElementById('modeStd').classList.remove('active');
+    setTimeout(resize, 20);
+  });
+
+  document.getElementById('btnFusionRule').addEventListener('click', (e) => {
+    fusionRule = fusionRule === 'AND' ? 'OR' : 'AND';
+    e.target.textContent = `Rule: ${fusionRule}`;
+    document.getElementById('ruleBadge').textContent = `${fusionRule} LOGIC`;
+  });
+
+  document.getElementById('btnExportCsv').addEventListener('click', () => {
+    const blob = new Blob([auditCsv.join('\n')], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `circleos_audit_${Date.now()}.csv`;
+    a.click();
+    showToast("Audit CSV Exported");
+  });
+
+  // Camera Handling
+  async function startCamera(idx = 0) {
+    try {
+      if (video.srcObject) {
+        video.srcObject.getTracks().forEach(t => t.stop());
+        video.srcObject = null;
+        await new Promise(r => setTimeout(r, 140));
+      }
+      const stream0 = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+      if (!devs.length) throw new Error("No camera found");
+      camIndex = idx % devs.length;
+      if (devs.length === 1 || camIndex === 0) {
+        video.srcObject = stream0;
+      } else {
+        stream0.getTracks().forEach(t => t.stop());
+        await new Promise(r => setTimeout(r, 170));
+        video.srcObject = await navigator.mediaDevices.getUserMedia({
+          video: { deviceId: { exact: devs[camIndex].deviceId } }, audio: false
+        });
+      }
+      await video.play();
+      camActive = true; bgReady = false; lastVideoTime = -1;
+      document.getElementById('btnCam').classList.add('on');
+      document.getElementById('btnCam').textContent = "Cam On";
+      logDev("CAM READY: " + (devs[camIndex].label || `Cam ${camIndex + 1}`));
+    } catch (err) {
+      showToast("Camera Error: " + err.message);
+    }
+  }
+
+  document.getElementById('btnCam').addEventListener('click', () => startCamera(camIndex));
+  document.getElementById('btnNextCam').addEventListener('click', () => startCamera(camIndex + 1));
+
+  document.getElementById('rngTrip').addEventListener('input', e => {
+    tripLimitCm = +e.target.value;
+    document.getElementById('lblTrip').textContent = tripLimitCm;
+  });
+  document.getElementById('rngEdge').addEventListener('input', e => edgeThresh = +e.target.value);
+
+  document.getElementById('btnCal').addEventListener('click', () => {
+    const curCm = distMm / 10;
+    roomWallCm = curCm;
+    tripLimitCm = Math.max(15, Math.min(220, Math.round(curCm - 12)));
+    document.getElementById('rngTrip').value = tripLimitCm;
+    document.getElementById('lblTrip').textContent = tripLimitCm;
+    document.getElementById('dvWall').textContent = `${roomWallCm.toFixed(1)} cm`;
+    bgReady = false; minCm = 999;
+    showToast(`Room Calibrated (Wall: ${roomWallCm.toFixed(0)} cm)`);
+  });
+
+  document.getElementById('btnNotify').addEventListener('click', async (e) => {
+    if (!('Notification' in window)) { showToast("Desktop notifications unsupported"); return; }
+    if (!notifyOn) {
+      const perm = await Notification.requestPermission();
+      if (perm === 'granted') {
+        notifyOn = true; e.target.classList.add('on'); e.target.textContent = "Notify: On";
+        showToast("Desktop Notifications Enabled");
+      }
+    } else {
+      notifyOn = false; e.target.classList.remove('on'); e.target.textContent = "Notify: Off";
+    }
+  });
+
+  document.getElementById('btnAutoSave').addEventListener('click', e => {
+    autoSave = !autoSave; e.target.classList.toggle('on', autoSave);
+    e.target.textContent = `Auto-Save: ${autoSave ? 'On' : 'Off'}`;
+  });
+  document.getElementById('btnSound').addEventListener('click', e => {
+    soundOn = !soundOn; e.target.classList.toggle('on', soundOn);
+    e.target.textContent = `Sound: ${soundOn ? 'On' : 'Off'}`;
+  });
+  document.getElementById('btnRot').addEventListener('click', e => {
+    rotate180 = !rotate180; bgReady = false; e.target.classList.toggle('on', rotate180);
+    e.target.textContent = `180°: ${rotate180 ? 'On' : 'Off'}`;
+  });
+  document.getElementById('btnMirror').addEventListener('click', e => {
+    mirrorOn = !mirrorOn; bgReady = false; e.target.classList.toggle('on', mirrorOn);
+    e.target.textContent = `Mirror: ${mirrorOn ? 'On' : 'Off'}`;
+  });
+  document.getElementById('btnDemo').addEventListener('click', e => {
+    demoMode = !demoMode; e.target.classList.toggle('on', demoMode);
+  });
+
+  // Serial Connection + Auto-Reconnect for GitHub Pages HTTPS
+  async function openSerialPort(port) {
+    await port.open({ baudRate: 115200 });
+    try { await port.setSignals({ dataTerminalReady: true, requestToSend: true }); } catch (_) {}
+    connected = true; demoMode = false; minCm = 999;
+    serialWriter = port.writable.getWriter();
+
+    document.getElementById('btnConnect').classList.add('on');
+    document.getElementById('btnConnect').textContent = "USB Linked";
+    document.getElementById('btnDemo').classList.remove('on');
+    showToast("USB Ultrasonic Sensor Connected");
+
+    const decoder = new TextDecoder();
+    let buf = "";
+    const reader = port.readable.getReader();
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let nl;
+      while ((nl = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (line.startsWith("S,")) {
+          const p = line.split(',');
+          if (p.length >= 4) {
+            rxCount++; totalPackets++;
+            distMm = +p[1]; rawMm = +p[2]; echoUs = +p[3];
+            recordSample(distMm / 10, rawMm / 10);
+            if (totalPackets % 4 === 0) logDev(line);
+          }
+        }
+      }
+    }
+  }
+
+  document.getElementById('btnConnect').addEventListener('click', async () => {
+    if (!('serial' in navigator)) { alert("Use Google Chrome or Microsoft Edge!"); return; }
+    try {
+      const port = await navigator.serial.requestPort();
+      await openSerialPort(port);
+    } catch (err) {
+      logDev("USB ERR: " + err.message);
+    }
+  });
+
+  // Auto-reconnect previously paired Arduino (works seamlessly on GitHub Pages HTTPS!)
+  if ('serial' in navigator) {
+    navigator.serial.getPorts().then(ports => {
+      if (ports.length > 0) openSerialPort(ports[0]).catch(() => {});
+    });
+  }
+
+  function recordSample(cm, rCm) {
+    const now = performance.now();
+    if (cm < 245 && cm < minCm) minCm = cm;
+
+    sparkHist.copyWithin(0, 1); sparkHist[HIST_N - 1] = cm;
+    rawHist.copyWithin(0, 1);   rawHist[HIST_N - 1] = rCm;
+    soundMapSlices.shift();     soundMapSlices.push(cm);
+
+    jitterBuf[jitterIdx] = distMm - rawMm;
+    jitterIdx = (jitterIdx + 1) % jitterBuf.length;
+    let sumSq = 0;
+    for (let i = 0; i < jitterBuf.length; i++) sumSq += jitterBuf[i] * jitterBuf[i];
+    jitterStdMm = Math.sqrt(sumSq / jitterBuf.length);
+
+    speedSamples.push({ t: now, cm });
+    while (speedSamples.length > 2 && now - speedSamples[0].t > 200) speedSamples.shift();
+    if (speedSamples.length >= 2 && cm < 240 && speedSamples[0].cm < 240) {
+      const dt = (now - speedSamples[0].t) / 1000;
+      if (dt > 0.05) {
+        const v = (speedSamples[0].cm - cm) / dt;
+        speedCms = Math.abs(v) < 5 ? 0 : Math.min(350, Math.abs(v));
+      }
+    } else {
+      speedCms = 0;
+    }
+
+    if (auditCsv.length < 4000 && totalPackets % 3 === 0) {
+      auditCsv.push(`${new Date().toISOString()},${cm.toFixed(1)},${rCm.toFixed(1)},${echoUs},${camMotionPct.toFixed(1)},${fusionConf},${combinedTripped ? 'INTRUDER' : 'CLEAR'}`);
+    }
+  }
+
+  function downloadUrl(url, fname) {
+    const a = document.createElement('a');
+    a.href = url; a.download = fname;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  }
+
+  function captureShot(slotIdx, burstId) {
+    const dataUrl = cComb.toDataURL('image/jpeg', 0.92);
+    const img = document.getElementById(`img${slotIdx}`);
+    const lbl = document.getElementById(`lbl${slotIdx}`);
+    const badge = document.getElementById(`b${slotIdx}`);
+    const slot = document.getElementById(`slot${slotIdx}`);
+
+    img.src = dataUrl; img.style.display = 'block';
+    lbl.style.display = 'none'; slot.classList.add('filled');
+
+    const timeStr = new Date().toLocaleTimeString();
+    badge.style.display = 'block';
+    badge.textContent = `Shot ${slotIdx + 1} • ${(distMm / 10).toFixed(1)}cm • ${timeStr}`;
+
+    const fname = `circleos_intruder_${burstId}_shot${slotIdx + 1}.jpg`;
+    slot.onclick = () => downloadUrl(dataUrl, fname);
+    if (autoSave) downloadUrl(dataUrl, fname);
+  }
+
+  function triggerBurst(cm) {
+    burstTotal++;
+    const id = burstTotal;
+    document.getElementById('burstCount').textContent = `${burstTotal} burst${burstTotal > 1 ? 's' : ''}`;
+    document.getElementById('stAlerts').textContent = burstTotal;
+    logDev(`[ALERT #${id}] ${cm.toFixed(1)}cm Conf:${fusionConf}%`);
+    showToast(`🚨 Intruder at ${cm.toFixed(1)} cm — 3 Photos Saved!`);
+    sendDesktopNotification(cm);
+    captureShot(0, id);
+    setTimeout(() => captureShot(1, id), 250);
+    setTimeout(() => captureShot(2, id), 500);
+  }
+
+  // === PANEL 1: TOP-DOWN 30-DEGREE ACOUSTIC SOUND MAP + ECHO PROFILE ===
+  function drawSoundMap(now, cm) {
+    const w = cSound.width, h = cSound.height;
+    ctxS.clearRect(0, 0, w, h);
+
+    const cx = w / 2, srcY = h - 20;
+    const maxR = Math.min(w * 0.48, h - 38);
+    const maxCm = Math.max(250, tripLimitCm + 40);
+
+    // Concentric Range Rings (top-down 30-deg acoustic cone)
+    ctxS.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctxS.lineWidth = 1;
+    ctxS.font = '10px -apple-system, sans-serif';
+    ctxS.fillStyle = 'rgba(255,255,255,0.4)';
+    for (let k = 1; k <= 4; k++) {
+      const rk = (maxR * k) / 4;
+      ctxS.beginPath(); ctxS.arc(cx, srcY, rk, -Math.PI * 0.72, -Math.PI * 0.28); ctxS.stroke();
+      ctxS.fillText(`${Math.round((maxCm * k) / 4)}cm`, cx + rk * 0.65, srcY - rk * 0.68);
+    }
+
+    // 30-degree ultrasonic cone boundaries
+    const angL = -Math.PI * 0.5 - 0.28, angR = -Math.PI * 0.5 + 0.28;
+    ctxS.strokeStyle = 'rgba(100, 210, 255, 0.28)';
+    ctxS.beginPath();
+    ctxS.moveTo(cx, srcY); ctxS.lineTo(cx + Math.cos(angL) * maxR, srcY + Math.sin(angL) * maxR);
+    ctxS.moveTo(cx, srcY); ctxS.lineTo(cx + Math.cos(angR) * maxR, srcY + Math.sin(angR) * maxR);
+    ctxS.stroke();
+
+    // Trip Zone Arc (Yellow dashed)
+    const tripR = (Math.min(maxCm, tripLimitCm) / maxCm) * maxR;
+    ctxS.strokeStyle = '#ffd60a'; ctxS.setLineDash([4, 4]); ctxS.lineWidth = 1.5;
+    ctxS.beginPath(); ctxS.arc(cx, srcY, tripR, angL, angR); ctxS.stroke();
+    ctxS.setLineDash([]);
+
+    // Propagating Acoustic Blast Waves inside Cone
+    const hitR = (Math.min(maxCm, cm) / maxCm) * maxR;
+    const phase = (now * 0.14) % 28;
+    ctxS.strokeStyle = soundTripped ? '#ff453a' : '#64d2ff';
+    ctxS.lineWidth = 2;
+    for (let r = phase; r < hitR; r += 28) {
+      ctxS.globalAlpha = Math.max(0.15, 1 - r / Math.max(30, hitR));
+      ctxS.beginPath(); ctxS.arc(cx, srcY, r, angL, angR); ctxS.stroke();
+    }
+    ctxS.globalAlpha = 1;
+
+    // Reflected Acoustic Body/Wall Echo Arc + History Ribbon
+    const grad = ctxS.createRadialGradient(cx, srcY, Math.max(4, hitR - 14), cx, srcY, hitR + 8);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(0.5, soundTripped ? 'rgba(255, 69, 58, 0.55)' : 'rgba(48, 209, 88, 0.45)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctxS.strokeStyle = soundTripped ? '#ff453a' : '#30d158';
+    ctxS.lineWidth = 6;
+    ctxS.beginPath(); ctxS.arc(cx, srcY, hitR, angL + 0.04, angR - 0.04); ctxS.stroke();
+
+    // Ultrasonic Sensor Icon at bottom apex
+    ctxS.fillStyle = '#0a84ff';
+    ctxS.beginPath(); ctxS.roundRect(cx - 14, srcY - 4, 28, 12, 4); ctxS.fill();
+    ctxS.fillStyle = '#fff'; ctxS.font = '700 11px -apple-system, sans-serif';
+    ctxS.textAlign = 'center';
+    ctxS.fillText(cm >= 245 ? 'OPEN SPACE (>2.4m)' : `${cm.toFixed(1)} cm ECHO`, cx, 18);
+    ctxS.textAlign = 'left';
+  }
+
+  // === PANEL 2 (LIDAR BODY/WIREFRAME) & PANEL 3 (COMBINED FUSION POV) ===
+  function drawLidarAndCombined(now, cm) {
+    const lw = cLidar.width, lh = cLidar.height;
+    const fw = cComb.width, fh = cComb.height;
+
+    if (camActive && video.readyState >= 2) {
+      if (video.currentTime !== lastVideoTime) {
+        lastVideoTime = video.currentTime;
+
+        offCtx.save();
+        offCtx.translate(PW / 2, PH / 2);
+        if (rotate180) offCtx.rotate(Math.PI);
+        if (mirrorOn) offCtx.scale(-1, 1);
+        offCtx.drawImage(video, -PW / 2, -PH / 2, PW, PH);
+        offCtx.restore();
+
+        const img = offCtx.getImageData(0, 0, PW, PH).data;
+        if (!bgReady) {
+          for (let i = 0, p = 0; i < PCOUNT; i++, p += 4) {
+            runBg[i] = (img[p] * 77 + img[p + 1] * 150 + img[p + 2] * 29) >> 8;
+          }
+          bgReady = true;
+        }
+
+        motMinX = PW; motMaxX = 0; motMinY = PH; motMaxY = 0; motCount = 0;
+        for (let y = 0; y < PH; y++) {
+          const row = y * PW;
+          for (let x = 0; x < PW; x++) {
+            const i = row + x, p = i * 4;
+            const g = (img[p] * 77 + img[p + 1] * 150 + img[p + 2] * 29) >> 8;
+            grayCur[i] = g;
+            const diff = Math.abs(g - runBg[i]);
+            if (diff > 25) {
+              motCount++;
+              if (x < motMinX) motMinX = x; if (x > motMaxX) motMaxX = x;
+              if (y < motMinY) motMinY = y; if (y > motMaxY) motMaxY = y;
+              runBg[i] = runBg[i] * 0.985 + g * 0.015;
+            } else {
+              runBg[i] = runBg[i] * 0.92 + g * 0.08;
+            }
+          }
+        }
+        camMotionPct = (motCount / PCOUNT) * 100;
+        camTripped = camMotionPct > 2.6;
+
+        lidar32.fill(0);
+        const [er, eg, eb] = combinedTripped ? [255, 69, 58] : (soundTripped ? [255, 214, 10] : [48, 209, 88]);
+        const fill32 = (110 << 24) | (eb << 16) | (eg << 8) | er;
+
+        for (let y = 1; y < PH - 1; y++) {
+          const row = y * PW;
+          for (let x = 1; x < PW - 1; x++) {
+            const i = row + x;
+            const edge = Math.abs(grayCur[i + 1] - grayCur[i - 1]) + Math.abs(grayCur[i + PW] - grayCur[i - PW]);
+            const isMoved = Math.abs(grayCur[i] - runBg[i]) > 25;
+
+            if (edge > edgeThresh) {
+              const b = Math.min(255, edge * 3);
+              const r = isMoved ? 255 : (er * b) >> 8;
+              const g = isMoved ? (combinedTripped ? 85 : 215) : (eg * b) >> 8;
+              const bl = isMoved ? 130 : (eb * b) >> 8;
+              lidar32[i] = (255 << 24) | (bl << 16) | (g << 8) | r;
+            } else if (isMoved && ((x | y) & 1) === 0) {
+              lidar32[i] = fill32;
+            }
+          }
+        }
+        offCtx.putImageData(lidarImg, 0, 0);
+      }
+
+      // Draw Panel 2 (LiDAR Wireframe)
+      ctxL.clearRect(0, 0, lw, lh);
+      ctxL.strokeStyle = 'rgba(100, 210, 255, 0.07)';
+      ctxL.lineWidth = 1;
+      for (let x = 0; x < lw; x += 36) { ctxL.beginPath(); ctxL.moveTo(x, 0); ctxL.lineTo(x, lh); ctxL.stroke(); }
+      ctxL.drawImage(offC, 0, 0, lw, lh);
+
+      // Draw Motion Bounding Box on Panel 2
+      if (camTripped && motMaxX > motMinX) {
+        const bx = (motMinX / PW) * lw, by = (motMinY / PH) * lh;
+        const bw = ((motMaxX - motMinX) / PW) * lw, bh = ((motMaxY - motMinY) / PH) * lh;
+        ctxL.strokeStyle = '#ffd60a'; ctxL.lineWidth = 1.5;
+        ctxL.strokeRect(bx, by, bw, bh);
+      }
+
+      // Draw Panel 3 (Combined Live POV Camera + Sonar Cone + Wireframe Overlay)
+      ctxF.save();
+      ctxF.translate(fw / 2, fh / 2);
+      if (rotate180) ctxF.rotate(Math.PI);
+      if (mirrorOn) ctxF.scale(-1, 1);
+      ctxF.drawImage(video, -fw / 2, -fh / 2, fw, fh);
+      ctxF.restore();
+
+      if (camTripped || combinedTripped) {
+        ctxF.globalAlpha = combinedTripped ? 0.55 : 0.30;
+        ctxF.drawImage(offC, 0, 0, fw, fh);
+        ctxF.globalAlpha = 1;
+      }
+    } else {
+      camMotionPct = demoMode && Math.sin(now * 0.003) > 0.2 ? 12.8 : 0;
+      camTripped = camMotionPct > 2.6;
+      ctxL.clearRect(0, 0, lw, lh);
+      ctxF.clearRect(0, 0, fw, fh);
+      [[ctxL, lw, lh, 'Click "Camera" for LiDAR Wireframe'],
+       [ctxF, fw, fh, 'Click "Camera" for Combined Fusion View']
+      ].forEach(([c, w, h, msg]) => {
+        c.fillStyle = '#8e8e93'; c.font = '500 12.5px -apple-system, sans-serif';
+        c.textAlign = 'center'; c.fillText(msg, w / 2, h / 2); c.textAlign = 'left';
+      });
+    }
+
+    // Laser sweep line on LiDAR panel
+    const scanY = (now * 0.08) % lh;
+    ctxL.strokeStyle = 'rgba(100, 210, 255, 0.35)'; ctxL.lineWidth = 1.5;
+    ctxL.beginPath(); ctxL.moveTo(0, scanY); ctxL.lineTo(lw, scanY); ctxL.stroke();
+
+    // 30-deg Ultrasonic Cone Zone Reticle inside Live Cam (shows exact acoustic FOV!)
+    const col = combinedTripped ? '#ff453a' : (soundTripped ? '#ffd60a' : '#30d158');
+    ctxF.strokeStyle = col; ctxF.lineWidth = 2;
+    ctxF.beginPath(); ctxF.arc(fw / 2, fh / 2, Math.min(fw, fh) * 0.19, 0, Math.PI * 2); ctxF.stroke();
+    ctxF.setLineDash([4, 4]);
+    ctxF.beginPath(); ctxF.arc(fw / 2, fh / 2, Math.min(fw, fh) * 0.32, 0, Math.PI * 2); ctxF.stroke();
+    ctxF.setLineDash([]);
+
+    const label = `${combinedTripped ? 'INTRUDER' : 'SCANNING'} • ${cm >= 245 ? 'CLEAR' : cm.toFixed(1) + ' cm'} • Conf ${fusionConf}%`;
+    ctxF.font = '600 11.5px -apple-system, sans-serif';
+    const tw = ctxF.measureText(label).width + 20;
+    ctxF.fillStyle = 'rgba(12, 14, 20, 0.8)';
+    ctxF.beginPath(); ctxF.roundRect(fw / 2 - tw / 2, fh - 30, tw, 22, 11); ctxF.fill();
+    ctxF.fillStyle = '#fff';
+    ctxF.fillText(label, fw / 2 - tw / 2 + 10, fh - 15);
+  }
+
+  function drawLineChart(ctx, w, h, arr, maxV, color, fillGrad, tripLine = -1) {
+    ctx.clearRect(0, 0, w, h);
+    if (tripLine > 0) {
+      const ty = h - 4 - (Math.min(maxV, tripLine) / maxV) * (h - 8);
+      ctx.strokeStyle = 'rgba(255, 214, 10, 0.45)'; ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.moveTo(0, ty); ctx.lineTo(w, ty); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.beginPath();
+    for (let i = 0; i < arr.length; i++) {
+      const x = (i / (arr.length - 1)) * w;
+      const y = h - 4 - (Math.min(maxV, arr[i]) / maxV) * (h - 8);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = color; ctx.lineWidth = 1.8; ctx.stroke();
+    if (fillGrad) {
+      const g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, fillGrad); g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
+      ctx.fillStyle = g; ctx.fill();
+    }
+  }
+
+  function drawDevGraphs() {
+    if (!devMode) return;
+    // Oscilloscope: Raw (amber) + Filtered (cyan)
+    const ow = cDevOsc.width, oh = cDevOsc.height;
+    drawLineChart(ctxO, ow, oh, sparkHist, 250, '#64d2ff', 'rgba(100,210,255,0.22)', tripLimitCm);
+    ctxO.beginPath();
+    for (let i = 0; i < rawHist.length; i++) {
+      const x = (i / (rawHist.length - 1)) * ow;
+      const y = oh - 4 - (Math.min(250, rawHist[i]) / 250) * (oh - 8);
+      if (i === 0) ctxO.moveTo(x, y); else ctxO.lineTo(x, y);
+    }
+    ctxO.strokeStyle = 'rgba(255, 214, 10, 0.5)'; ctxO.lineWidth = 1; ctxO.stroke();
+
+    // Fusion Timeline: Sound Proximity % (blue) vs Motion % (purple)
+    const uw = cDevFus.width, uh = cDevFus.height;
+    drawLineChart(ctxU, uw, uh, sndHist, 100, '#0a84ff', 'rgba(10,132,255,0.20)', 50);
+    ctxU.beginPath();
+    for (let i = 0; i < motHist.length; i++) {
+      const x = (i / (motHist.length - 1)) * uw;
+      const y = uh - 4 - (Math.min(100, motHist[i]) / 100) * (uh - 8);
+      if (i === 0) ctxU.moveTo(x, y); else ctxU.lineTo(x, y);
+    }
+    ctxU.strokeStyle = '#bf5af2'; ctxU.lineWidth = 1.8; ctxU.stroke();
+  }
+
+  let frames = 0, lastFpsT = performance.now(), simT = 0;
+  function loop(now) {
+    const tStart = performance.now();
+    frames++;
+    if (now - lastFpsT >= 1000) {
+      document.getElementById('fpsLabel').textContent = `${frames} FPS`;
+      frames = 0; lastFpsT = now;
+    }
+
+    if (demoMode) {
+      simT += 0.04;
+      const wave = 236 - (Math.sin(simT) > 0.2 ? 150 : 0);
+      distMm = wave * 10; rawMm = distMm + (Math.random() - 0.5) * 20;
+      echoUs = Math.round(distMm * 5.83);
+      recordSample(distMm / 10, rawMm / 10);
+    }
+
+    const cm = distMm / 10;
+    soundTripped = (cm >= 2 && cm < tripLimitCm);
+
+    // Compute Fusion Confidence (0 - 100%)
+    const sndScore = soundTripped ? Math.min(100, 50 + ((tripLimitCm - cm) / tripLimitCm) * 50) : 0;
+    const camScore = Math.min(100, (camMotionPct / 10) * 100);
+    fusionConf = Math.round(camActive ? (sndScore * 0.55 + camScore * 0.45) : sndScore);
+
+    sndHist.copyWithin(0, 1); sndHist[HIST_N - 1] = sndScore;
+    motHist.copyWithin(0, 1); motHist[HIST_N - 1] = camScore;
+
+    drawSoundMap(now, cm);
+    drawLidarAndCombined(now, cm);
+    drawLineChart(ctxK, cSpark.width, cSpark.height, sparkHist, 250, '#64d2ff', 'rgba(10,132,255,0.28)', tripLimitCm);
+    drawDevGraphs();
+
+    const rawTrig = !camActive ? soundTripped
+      : (fusionRule === 'AND' ? (soundTripped && camTripped) : (soundTripped || camTripped));
+
+    const prevCombined = combinedTripped;
+    if (rawTrig) { clearStreak = 0; combinedTripped = true; }
+    else if (++clearStreak > 6) combinedTripped = false;
+
+    if (combinedTripped) {
+      sendToArduino('A');
+      if (!prevCombined && (now - lastBurstMs > 3500)) {
+        lastBurstMs = now;
+        playAlertChime();
+        triggerBurst(cm);
+      }
+    } else {
+      sendToArduino('C');
+    }
+
+    // Update UI & Stats
+    document.body.classList.toggle('alarm-bg', combinedTripped);
+    document.getElementById('pSound').classList.toggle('tripped', soundTripped);
+    document.getElementById('pCam').classList.toggle('tripped', camTripped);
+    document.getElementById('pCombined').classList.toggle('tripped', combinedTripped);
+
+    const ps = document.getElementById('pillSound');
+    ps.textContent = soundTripped ? "TRIPPED" : "CLEAR";
+    ps.className = `badge ${soundTripped ? 'trip' : 'ok'}`;
+
+    const pc = document.getElementById('pillCam');
+    pc.textContent = camTripped ? "MOTION" : "CLEAR";
+    pc.className = `badge ${camTripped ? 'trip' : 'ok'}`;
+
+    const pf = document.getElementById('pillComb');
+    pf.textContent = combinedTripped ? "INTRUDER" : "ARMED";
+    pf.className = `badge ${combinedTripped ? 'trip' : 'ok'}`;
+
+    const isl = document.getElementById('island');
+    isl.className = `island ${combinedTripped ? 'alert' : ''}`;
+    document.getElementById('islandText').textContent = combinedTripped
+      ? `INTRUDER CONFIRMED • ${cm.toFixed(1)} cm (${fusionConf}%)`
+      : `Armed • ${cm >= 245 ? 'Doorway Clear' : cm.toFixed(1) + ' cm'} • ${rxHz} Hz`;
+
+    document.getElementById('txtSoundDist').textContent = cm >= 245 ? "Distance: CLEAR" : `Distance: ${cm.toFixed(1)} cm`;
+    document.getElementById('txtCamMotion').textContent = `Motion: ${camMotionPct.toFixed(1)}%`;
+    document.getElementById('txtCombInfo').textContent = `Confidence: ${fusionConf}% • ${combinedTripped ? 'OLED Alerting!' : 'OLED Armed'}`;
+
+    document.getElementById('stDist').textContent = cm >= 245 ? "CLEAR" : `${cm.toFixed(1)} cm`;
+    document.getElementById('stMin').textContent = minCm < 245 ? `${minCm.toFixed(1)} cm` : "--";
+    document.getElementById('stSpeed').textContent = `${speedCms.toFixed(0)} cm/s`;
+    document.getElementById('stConf').textContent = `${fusionConf}%`;
+
+    if (devMode) {
+      document.getElementById('dvJitter').textContent = `${jitterStdMm.toFixed(1)} mm`;
+      document.getElementById('dvEcho').textContent = `${echoUs} µs`;
+      document.getElementById('dvCpu').textContent = `${(performance.now() - tStart).toFixed(1)} ms`;
+      document.getElementById('pktTotal').textContent = `${totalPackets} pkts`;
+    }
+
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
